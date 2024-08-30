@@ -17,11 +17,17 @@ locals {
 
   service_roles_with_policies_dynamodb = { for k, v in local.service_roles_with_policies : k => merge(v,
     {
-      policy_statements = {
+      policy_statements = !lookup(v, "all_tables", false) ? {
         dynamodb = {
           effect    = "Allow"
           actions   = lookup(v, "policy_actions", null) == null ? var.dynamodb_allowed_actions : v.policy_actions
           resources = [for _, f in ["arn:${data.aws_partition.this.partition}:dynamodb:%v:%v:table/%v", "arn:${data.aws_partition.this.partition}:dynamodb:%v:%v:table/%v/*"] : format(f, v.region, lookup(v, "aws_account_id", data.aws_caller_identity.this.account_id), v.table_name)]
+        }
+      } : {
+        dynamodb = {
+          effect    = "Allow"
+          actions   = lookup(v, "policy_actions", null) == null ? var.dynamodb_allowed_actions : v.policy_actions
+          resources = [for _, f in ["arn:${data.aws_partition.this.partition}:dynamodb:%v:%v:table/*"] : format(f, v.region, lookup(v, "aws_account_id", data.aws_caller_identity.this.account_id))]
         }
       }
     }
